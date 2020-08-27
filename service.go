@@ -2,7 +2,9 @@ package main
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
+	jsonpatch "github.com/evanphx/json-patch/v5"
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 	"math/rand"
@@ -88,6 +90,24 @@ func (s *Service) createAccount(firstName, lastName, email, password string) (*A
 	return account, err
 }
 
+func (s *Service) getTeam(teamId int) (*Team, error) {
+	team, err := repository.getTeamById(teamId)
+
+	if err != nil {
+		return nil, err
+	}
+
+	players, err := repository.getPlayersByTeamId(team.Id)
+
+	if err != nil {
+		return nil, err
+	}
+
+	team.Players = players
+
+	return &team, nil
+}
+
 func (s *Service) createTeam(account *Account, tx *sql.Tx) (*Team, error) {
 	team := &Team{
 		Name:          fmt.Sprintf("%s %s's Team", account.FirstName, account.LastName),
@@ -110,6 +130,11 @@ func (s *Service) createTeam(account *Account, tx *sql.Tx) (*Team, error) {
 	}
 
 	return team, err
+}
+
+func (s *Service) getPlayer(playerId int) (*Player, error) {
+	player, err := repository.getPlayer(playerId)
+	return &player, err
 }
 
 func (s *Service) createPlayers(team *Team, tx *sql.Tx) (err error) {
@@ -152,4 +177,37 @@ func (s *Service) createPlayersByPosition(team *Team, position PlayerPosition, q
 		team.Players = append(team.Players, player)
 	}
 	return nil
+}
+
+func (s *Service) updatePlayer(playerId int, patchJSON []byte) (*Player, error) {
+	player, err := service.getPlayer(playerId)
+
+	if err != nil {
+		return nil, err
+	}
+
+	patch, err := jsonpatch.DecodePatch(patchJSON)
+
+	if err != nil {
+		return nil, err
+	}
+
+	playerJSON, _ := json.Marshal(player)
+	patched, err := patch.Apply(playerJSON)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if err := json.Unmarshal(patched, player); err != nil {
+		return nil, err
+	}
+
+	err = repository.updatePlayer(player)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return player, nil
 }

@@ -6,7 +6,16 @@ type Repository struct{}
 
 func (r *Repository) getPlayer(id int) (Player, error) {
 	players, err := r.getPlayers("SELECT id, first_name, last_name, age, country, position, market_value, team_id FROM player WHERE id = ?", id)
-	return players[0], err
+
+	if err != nil {
+		return Player{}, err
+	}
+
+	if len(players) == 0 {
+		return Player{}, sql.ErrNoRows
+	}
+
+	return players[0], nil
 }
 
 func (r *Repository) getAllPlayers() (players []Player, err error) {

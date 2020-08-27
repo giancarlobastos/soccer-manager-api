@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/gorilla/mux"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"strconv"
@@ -20,15 +21,15 @@ type CreateAccountRequest struct {
 
 func (router *Router) start(addr string) {
 	r := mux.NewRouter()
-	r.HandleFunc("/authenticate", router.createAccount).Methods("POST")
 
 	r.HandleFunc("/accounts", router.createAccount).Methods("POST")
 	r.HandleFunc("/accounts/{accountId}", router.getAccount).Methods("GET")
+	r.HandleFunc("/players/{playerId}", router.getPlayer).Methods("GET")
+	r.HandleFunc("/players/{playerId}", router.updatePlayer).Methods("PATCH")
+	r.HandleFunc("/teams/{teamId}", router.getTeam).Methods("GET")
 
+	r.HandleFunc("/authenticate", router.createAccount).Methods("POST")
 	r.HandleFunc("/verify-account", router.createAccount).Methods("GET")
-	r.HandleFunc("/players/{playerId}", router.createAccount).Methods("GET")
-	r.HandleFunc("/players/{playerId}", router.createAccount).Methods("PATCH")
-	r.HandleFunc("/teams/{teamId}", router.createAccount).Methods("GET")
 	r.HandleFunc("/teams/{teamId}", router.createAccount).Methods("PATCH")
 	r.HandleFunc("/transfers", router.createAccount).Methods("GET")
 	r.HandleFunc("/transfers", router.createAccount).Methods("POST")
@@ -74,6 +75,71 @@ func (router *Router) getAccount(w http.ResponseWriter, r *http.Request) {
 	}
 
 	respondWithJSON(w, http.StatusOK, account)
+}
+
+func (router *Router) getPlayer(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	playerId, err := strconv.Atoi(vars["playerId"])
+
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	player, err := service.getPlayer(playerId)
+
+	if err != nil {
+		respondWithError(w, http.StatusNotFound, err.Error())
+		return
+	}
+
+	respondWithJSON(w, http.StatusOK, player)
+}
+
+func (router *Router) updatePlayer(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	playerId, err := strconv.Atoi(vars["playerId"])
+
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	patchJSON, err := ioutil.ReadAll(r.Body)
+	defer r.Body.Close()
+
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "Invalid request payload")
+		return
+	}
+
+	player, err := service.updatePlayer(playerId, patchJSON)
+
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Error in updating player's data")
+		return
+	}
+
+	respondWithJSON(w, http.StatusOK, player)
+}
+
+func (router *Router) getTeam(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	teamId, err := strconv.Atoi(vars["teamId"])
+
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	team, err := service.getTeam(teamId)
+
+	if err != nil {
+		respondWithError(w, http.StatusNotFound, err.Error())
+		return
+	}
+
+	respondWithJSON(w, http.StatusOK, team)
 }
 
 func respondWithError(w http.ResponseWriter, code int, message string) {
