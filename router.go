@@ -27,10 +27,10 @@ func (router *Router) start(addr string) {
 	r.HandleFunc("/players/{playerId}", router.getPlayer).Methods("GET")
 	r.HandleFunc("/players/{playerId}", router.updatePlayer).Methods("PATCH")
 	r.HandleFunc("/teams/{teamId}", router.getTeam).Methods("GET")
+	r.HandleFunc("/teams/{teamId}", router.updateTeam).Methods("PATCH")
 
 	r.HandleFunc("/authenticate", router.createAccount).Methods("POST")
 	r.HandleFunc("/verify-account", router.createAccount).Methods("GET")
-	r.HandleFunc("/teams/{teamId}", router.createAccount).Methods("PATCH")
 	r.HandleFunc("/transfers", router.createAccount).Methods("GET")
 	r.HandleFunc("/transfers", router.createAccount).Methods("POST")
 	r.HandleFunc("/transfers/{transferId}", router.createAccount).Methods("PATCH")
@@ -136,6 +136,33 @@ func (router *Router) getTeam(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		respondWithError(w, http.StatusNotFound, err.Error())
+		return
+	}
+
+	respondWithJSON(w, http.StatusOK, team)
+}
+
+func (router *Router) updateTeam(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	teamId, err := strconv.Atoi(vars["teamId"])
+
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	patchJSON, err := ioutil.ReadAll(r.Body)
+	defer r.Body.Close()
+
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "Invalid request payload")
+		return
+	}
+
+	team, err := service.updateTeam(teamId, patchJSON)
+
+	if err != nil {
+		respondWithError(w, http.StatusNotFound, "Error in updating team's data")
 		return
 	}
 

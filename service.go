@@ -132,6 +132,39 @@ func (s *Service) createTeam(account *Account, tx *sql.Tx) (*Team, error) {
 	return team, err
 }
 
+func (s *Service) updateTeam(teamId int, patchJSON []byte) (*Team, error) {
+	team, err := service.getTeam(teamId)
+
+	if err != nil {
+		return nil, err
+	}
+
+	patch, err := jsonpatch.DecodePatch(patchJSON)
+
+	if err != nil {
+		return nil, err
+	}
+
+	teamJSON, _ := json.Marshal(team)
+	patched, err := patch.Apply(teamJSON)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if err := json.Unmarshal(patched, team); err != nil {
+		return nil, err
+	}
+
+	err = repository.updateTeam(team)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return team, nil
+}
+
 func (s *Service) getPlayer(playerId int) (*Player, error) {
 	player, err := repository.getPlayer(playerId)
 	return &player, err

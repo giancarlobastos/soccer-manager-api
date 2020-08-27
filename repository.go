@@ -156,3 +156,10 @@ func (r *Repository) createTeam(team *Team, tx *sql.Tx) error {
 	team.Id = int(id)
 	return nil
 }
+
+func (r *Repository) updateTeam(team *Team) error {
+	_, err :=
+		database.Exec("UPDATE team SET name = ?, country = ? WHERE id = ?", team.Name, team.Country, team.Id)
+
+	return err
+}
