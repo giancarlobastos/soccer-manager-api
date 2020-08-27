@@ -6,6 +6,7 @@ import (
 	"github.com/gorilla/mux"
 	"log"
 	"net/http"
+	"strconv"
 )
 
 type Router struct{}
@@ -19,7 +20,20 @@ type CreateAccountRequest struct {
 
 func (router *Router) start(addr string) {
 	r := mux.NewRouter()
+	r.HandleFunc("/authenticate", router.createAccount).Methods("POST")
+
 	r.HandleFunc("/accounts", router.createAccount).Methods("POST")
+	r.HandleFunc("/accounts/{accountId}", router.getAccount).Methods("GET")
+
+	r.HandleFunc("/verify-account", router.createAccount).Methods("GET")
+	r.HandleFunc("/players/{playerId}", router.createAccount).Methods("GET")
+	r.HandleFunc("/players/{playerId}", router.createAccount).Methods("PATCH")
+	r.HandleFunc("/teams/{teamId}", router.createAccount).Methods("GET")
+	r.HandleFunc("/teams/{teamId}", router.createAccount).Methods("PATCH")
+	r.HandleFunc("/transfers", router.createAccount).Methods("GET")
+	r.HandleFunc("/transfers", router.createAccount).Methods("POST")
+	r.HandleFunc("/transfers/{transferId}", router.createAccount).Methods("PATCH")
+	r.HandleFunc("/transfers/{transferId}", router.createAccount).Methods("PUT")
 
 	log.Fatal(http.ListenAndServe(":8080", r))
 }
@@ -41,6 +55,25 @@ func (router *Router) createAccount(w http.ResponseWriter, r *http.Request) {
 	}
 
 	router.respondCreated(w, r, fmt.Sprintf("/accounts/%d", account.Id))
+}
+
+func (router *Router) getAccount(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	accountId, err := strconv.Atoi(vars["accountId"])
+
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	account, err := service.getAccount(accountId)
+
+	if err != nil {
+		respondWithError(w, http.StatusNotFound, err.Error())
+		return
+	}
+
+	respondWithJSON(w, http.StatusOK, account)
 }
 
 func respondWithError(w http.ResponseWriter, code int, message string) {

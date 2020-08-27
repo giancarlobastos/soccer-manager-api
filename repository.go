@@ -89,18 +89,18 @@ func (r *Repository) updateAccount(account *Account, tx *sql.Tx) error {
 	return err
 }
 
-func (r *Repository) getAccountById(id int) (account Account, teamId int, err error) {
+func (r *Repository) getAccountById(id int) (account Account, err error) {
 	return r.getAccount(
-		"SELECT id, username, password, first_name, last_name, confirmed, locked, login_attempts, verification_token, team_id FROM account WHERE id = ?", id)
+		"SELECT id, username, password, first_name, last_name, confirmed, locked, login_attempts, verification_token FROM account WHERE id = ?", id)
 }
 
-func (r *Repository) getAccountByUsername(username string) (account Account, teamId int, err error) {
+func (r *Repository) getAccountByUsername(username string) (account Account, err error) {
 	return r.getAccount(
-		"SELECT id, username, password, first_name, last_name, confirmed, locked, login_attempts, verification_token, team_id FROM account WHERE username = ?", username)
+		"SELECT id, username, password, first_name, last_name, confirmed, locked, login_attempts, verification_token FROM account WHERE username = ?", username)
 }
 
-func (r *Repository) getAccount(query string, args ...interface{}) (account Account, teamId int, err error) {
-	return account, teamId, database.QueryRow(query, args...).Scan(
+func (r *Repository) getAccount(query string, args ...interface{}) (account Account, err error) {
+	return account, database.QueryRow(query, args...).Scan(
 		&account.Id,
 		&account.Username,
 		&account.password,
@@ -109,8 +109,7 @@ func (r *Repository) getAccount(query string, args ...interface{}) (account Acco
 		&account.confirmed,
 		&account.locked,
 		&account.loginAttempts,
-		&account.verificationToken,
-		&teamId)
+		&account.verificationToken)
 }
 
 func (r *Repository) verifyAccount(token string) error {
@@ -118,10 +117,17 @@ func (r *Repository) verifyAccount(token string) error {
 	return err
 }
 
-func (r *Repository) getTeam(id int) (Team, error) {
+func (r *Repository) getTeamById(id int) (Team, error) {
+	return r.getTeam("SELECT id, name, country, available_cash FROM team WHERE id = ?", id)
+}
+
+func (r *Repository) getTeamByAccountId(id int) (Team, error) {
+	return r.getTeam("SELECT id, name, country, available_cash FROM team WHERE account_id = ?", id)
+}
+
+func (r *Repository) getTeam(query string, args ...interface{}) (Team, error) {
 	team := Team{}
-	return team, database.QueryRow(
-		"SELECT id, name, country, available_cash FROM team WHERE id = ?", id).Scan(
+	return team, database.QueryRow(query, args...).Scan(
 		&team.Id,
 		&team.Name,
 		&team.Country,

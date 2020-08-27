@@ -3,10 +3,10 @@ USE soccermanager;
 
 CREATE TABLE account (
    id INTEGER NOT NULL AUTO_INCREMENT,
-    confirmed BIT NOT NULL,
+    confirmed TINYINT NOT NULL,
     first_name VARCHAR(255),
     last_name VARCHAR(255),
-    locked BIT NOT NULL,
+    locked TINYINT NOT NULL,
     login_attempts INTEGER,
     password VARCHAR(255),
     profile VARCHAR(255),
@@ -40,7 +40,7 @@ CREATE TABLE transfer_list (
    id INTEGER NOT NULL AUTO_INCREMENT,
     asked_price INTEGER,
     market_value INTEGER,
-    transferred BIT NOT NULL,
+    transferred TINYINT NOT NULL,
     player_id INTEGER,
     transferred_from INTEGER,
     transferred_to INTEGER,

@@ -11,6 +11,32 @@ import (
 
 type Service struct{}
 
+func (s *Service) getAccount(accountId int) (*Account, error) {
+	account, err := repository.getAccountById(accountId)
+
+	if err != nil {
+		return nil, err
+	}
+
+	team, err := repository.getTeamByAccountId(accountId)
+
+	if err != nil {
+		return nil, err
+	}
+
+	account.Team = &team
+
+	players, err := repository.getPlayersByTeamId(team.Id)
+
+	if err != nil {
+		return nil, err
+	}
+
+	account.Team.Players = players
+
+	return &account, nil
+}
+
 func (s *Service) createAccount(firstName, lastName, email, password string) (*Account, error) {
 	encryptedPassword, err := bcrypt.GenerateFromPassword([]byte(password), 10)
 
