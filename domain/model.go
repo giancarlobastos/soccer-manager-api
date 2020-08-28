@@ -1,4 +1,4 @@
-package main
+package domain
 
 type Player struct {
 	Id          int            `json:"id"`
@@ -8,7 +8,7 @@ type Player struct {
 	Age         uint8          `json:"age"`
 	Position    PlayerPosition `json:"position"`
 	MarketValue int            `json:"marketValue"`
-	teamId      *int
+	TeamId      *int           `json:"-"`
 }
 
 type Team struct {
@@ -17,20 +17,20 @@ type Team struct {
 	Country       string   `json:"country"`
 	AvailableCash int      `json:"availableCash"`
 	Players       []Player `json:"players"`
-	accountId     int
+	AccountId     int      `json:"-"`
 }
 
 type Account struct {
 	Id                int    `json:"id"`
 	Username          string `json:"email"`
-	password          string
+	Password          string `json:"-"`
 	FirstName         string `json:"firstName"`
 	LastName          string `json:"lastName"`
 	Team              *Team  `json:"team"`
-	verificationToken string
-	loginAttempts     uint8
-	locked            bool
-	confirmed         bool
+	VerificationToken string `json:"-"`
+	LoginAttempts     uint8  `json:"-"`
+	Locked            bool   `json:"-"`
+	Confirmed         bool   `json:"-"`
 }
 
 type Transfer struct {
@@ -38,9 +38,9 @@ type Transfer struct {
 	Player          Player `json:"player"`
 	MarketValue     int    `json:"marketValue"`
 	AskedPrice      int    `json:"askedPrice"`
-	TransferredFrom Team   `json:"transferredFrom"`
-	TransferredTo   Team   `json:"transferredTo"`
-	Transferred     bool   `json:"transferred"`
+	TransferredFrom *Team  `json:"-"`
+	TransferredTo   *Team  `json:"-"`
+	Transferred     bool   `json:"-"`
 }
 
 type PlayerPosition string

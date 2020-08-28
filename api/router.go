@@ -1,8 +1,9 @@
-package main
+package api
 
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/giancarlobastos/soccer-manager-api/service"
 	"github.com/gorilla/mux"
 	"io/ioutil"
 	"log"
@@ -10,7 +11,21 @@ import (
 	"strconv"
 )
 
-type Router struct{}
+type Router struct {
+	accountService  *service.AccountService
+	teamService     *service.TeamService
+	playerService   *service.PlayerService
+	transferService *service.TransferService
+}
+
+func NewRouter(as *service.AccountService, ts *service.TeamService, ps *service.PlayerService, tfs *service.TransferService) *Router {
+	return &Router{
+		accountService:  as,
+		teamService:     ts,
+		playerService:   ps,
+		transferService: tfs,
+	}
+}
 
 type CreateAccountRequest struct {
 	Email     string `json:"email"`
@@ -19,7 +34,12 @@ type CreateAccountRequest struct {
 	LastName  string `json:"lastName"`
 }
 
-func (router *Router) start(addr string) {
+type PutInTransferListRequest struct {
+	PlayerId   int
+	AskedPrice int
+}
+
+func (router *Router) Start(addr string) {
 	r := mux.NewRouter()
 
 	r.HandleFunc("/accounts", router.createAccount).Methods("POST")
@@ -28,11 +48,11 @@ func (router *Router) start(addr string) {
 	r.HandleFunc("/players/{playerId}", router.updatePlayer).Methods("PATCH")
 	r.HandleFunc("/teams/{teamId}", router.getTeam).Methods("GET")
 	r.HandleFunc("/teams/{teamId}", router.updateTeam).Methods("PATCH")
+	r.HandleFunc("/transfers", router.newTransfer).Methods("POST")
+	r.HandleFunc("/transfers", router.getTransfers).Methods("GET")
 
 	r.HandleFunc("/authenticate", router.createAccount).Methods("POST")
 	r.HandleFunc("/verify-account", router.createAccount).Methods("GET")
-	r.HandleFunc("/transfers", router.createAccount).Methods("GET")
-	r.HandleFunc("/transfers", router.createAccount).Methods("POST")
 	r.HandleFunc("/transfers/{transferId}", router.createAccount).Methods("PATCH")
 	r.HandleFunc("/transfers/{transferId}", router.createAccount).Methods("PUT")
 
@@ -48,7 +68,7 @@ func (router *Router) createAccount(w http.ResponseWriter, r *http.Request) {
 	}
 	defer r.Body.Close()
 
-	account, err := service.createAccount(car.FirstName, car.LastName, car.Email, car.Password)
+	account, err := router.accountService.CreateAccount(car.FirstName, car.LastName, car.Email, car.Password)
 
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, err.Error())
@@ -67,7 +87,7 @@ func (router *Router) getAccount(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	account, err := service.getAccount(accountId)
+	account, err := router.accountService.GetAccount(accountId)
 
 	if err != nil {
 		respondWithError(w, http.StatusNotFound, err.Error())
@@ -86,7 +106,7 @@ func (router *Router) getPlayer(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	player, err := service.getPlayer(playerId)
+	player, err := router.playerService.GetPlayer(playerId)
 
 	if err != nil {
 		respondWithError(w, http.StatusNotFound, err.Error())
@@ -113,7 +133,7 @@ func (router *Router) updatePlayer(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	player, err := service.updatePlayer(playerId, patchJSON)
+	player, err := router.playerService.UpdatePlayer(playerId, patchJSON)
 
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Error in updating player's data")
@@ -132,7 +152,7 @@ func (router *Router) getTeam(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	team, err := service.getTeam(teamId)
+	team, err := router.teamService.GetTeam(teamId)
 
 	if err != nil {
 		respondWithError(w, http.StatusNotFound, err.Error())
@@ -159,7 +179,7 @@ func (router *Router) updateTeam(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	team, err := service.updateTeam(teamId, patchJSON)
+	team, err := router.teamService.UpdateTeam(teamId, patchJSON)
 
 	if err != nil {
 		respondWithError(w, http.StatusNotFound, "Error in updating team's data")
@@ -184,4 +204,34 @@ func respondWithJSON(w http.ResponseWriter, code int, payload interface{}) {
 func (router *Router) respondCreated(w http.ResponseWriter, r *http.Request, path string) {
 	w.Header().Set("Path", r.Host+path)
 	w.WriteHeader(http.StatusCreated)
+}
+
+func (router *Router) newTransfer(w http.ResponseWriter, r *http.Request) {
+	var tr PutInTransferListRequest
+	decoder := json.NewDecoder(r.Body)
+	if err := decoder.Decode(&tr); err != nil {
+		respondWithError(w, http.StatusBadRequest, "Invalid request payload")
+		return
+	}
+	defer r.Body.Close()
+
+	transferId, err := router.transferService.NewTransfer(tr.PlayerId, tr.AskedPrice)
+
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	router.respondCreated(w, r, fmt.Sprintf("/transfers/%d", transferId))
+}
+
+func (router *Router) getTransfers(w http.ResponseWriter, r *http.Request) {
+	transfers, err := router.transferService.GetTransfers()
+
+	if err != nil {
+		respondWithError(w, http.StatusNotFound, err.Error())
+		return
+	}
+
+	respondWithJSON(w, http.StatusOK, transfers)
 }
