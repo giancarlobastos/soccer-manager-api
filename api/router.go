@@ -1,15 +1,29 @@
-package main
+package api
 
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/gorilla/mux"
 	"log"
 	"net/http"
+
+	"github.com/gorilla/mux"
 )
 
-type Router struct{}
+// Router ...
+type Router struct {
+	service *Service
+}
 
+// NewRouter ...
+func NewRouter(r *Repository) *Router {
+	return &Router{
+		service: &Service{
+			repository: r,
+		},
+	}
+}
+
+// CreateAccountRequest ...
 type CreateAccountRequest struct {
 	Email     string `json:"email"`
 	Password  string `json:"password"`
@@ -17,7 +31,8 @@ type CreateAccountRequest struct {
 	LastName  string `json:"lastName"`
 }
 
-func (router *Router) start(addr string) {
+// Start ...
+func (router *Router) Start(addr string) {
 	r := mux.NewRouter()
 	r.HandleFunc("/accounts", router.createAccount).Methods("POST")
 
@@ -33,7 +48,7 @@ func (router *Router) createAccount(w http.ResponseWriter, r *http.Request) {
 	}
 	defer r.Body.Close()
 
-	account, err := service.createAccount(car.FirstName, car.LastName, car.Email, car.Password)
+	account, err := router.service.createAccount(car.FirstName, car.LastName, car.Email, car.Password)
 
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, err.Error())

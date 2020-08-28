@@ -2,20 +2,23 @@ package main
 
 import (
 	"database/sql"
+
+	"github.com/giancarlobastos/soccer-manager-api/api"
+
 	_ "github.com/go-sql-driver/mysql"
 	_ "golang.org/x/crypto/bcrypt"
 )
 
 var (
-	database   *sql.DB
-	repository Repository
-	service    Service
-	router     Router
+	database *sql.DB
 )
 
 func main() {
+	repository := api.NewRepository(database)
+	router := api.NewRouter(repository)
+
+	router.Start(":8080")
 	defer destroy()
-	router.start(":8080")
 }
 
 func init() {
