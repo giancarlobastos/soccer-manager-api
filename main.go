@@ -2,20 +2,21 @@ package main
 
 import (
 	"database/sql"
+	"github.com/giancarlobastos/soccer-manager-api/api"
+	"github.com/giancarlobastos/soccer-manager-api/repository"
+	"github.com/giancarlobastos/soccer-manager-api/service"
 	_ "github.com/go-sql-driver/mysql"
 	_ "golang.org/x/crypto/bcrypt"
 )
 
 var (
-	database   *sql.DB
-	repository Repository
-	service    Service
-	router     Router
+	database *sql.DB
+	router   *api.Router
 )
 
 func main() {
 	defer destroy()
-	router.start(":8080")
+	router.Start(":8080")
 }
 
 func init() {
@@ -25,6 +26,18 @@ func init() {
 	if err != nil {
 		panic(err.Error())
 	}
+
+	playerRepository := repository.NewPlayerRepository(database)
+	teamRepository := repository.NewTeamRepository(database)
+	accountRepository := repository.NewAccountRepository(database, teamRepository, playerRepository)
+	transferRepository := repository.NewTransferRepository(database)
+
+	accountService := service.NewAccountService(accountRepository, teamRepository, playerRepository)
+	playerService := service.NewPlayerService(playerRepository)
+	teamService := service.NewTeamService(teamRepository, playerRepository)
+	transferService := service.NewTransferService(transferRepository, playerRepository)
+
+	router = api.NewRouter(accountService, teamService, playerService, transferService)
 }
 
 func destroy() {
