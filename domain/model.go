@@ -33,6 +33,11 @@ type Account struct {
 	Confirmed         bool   `json:"-"`
 }
 
+type User struct {
+	Username string
+	TeamId   int
+}
+
 type Transfer struct {
 	Id              int    `json:"id"`
 	Player          Player `json:"player"`

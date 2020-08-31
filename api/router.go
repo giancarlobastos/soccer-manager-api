@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/giancarlobastos/soccer-manager-api/security"
 	"github.com/giancarlobastos/soccer-manager-api/service"
 	"github.com/gorilla/mux"
 	"io/ioutil"
@@ -43,19 +44,32 @@ func (router *Router) Start(addr string) {
 	r := mux.NewRouter()
 
 	r.HandleFunc("/accounts", router.createAccount).Methods("POST")
-	r.HandleFunc("/accounts/{accountId}", router.getAccount).Methods("GET")
-	r.HandleFunc("/players/{playerId}", router.getPlayer).Methods("GET")
-	r.HandleFunc("/players/{playerId}", router.updatePlayer).Methods("PATCH")
-	r.HandleFunc("/teams/{teamId}", router.getTeam).Methods("GET")
-	r.HandleFunc("/teams/{teamId}", router.updateTeam).Methods("PATCH")
-	r.HandleFunc("/transfers", router.newTransfer).Methods("POST")
-	r.HandleFunc("/transfers", router.getTransfers).Methods("GET")
+	r.HandleFunc("/accounts/{accountId}", router.getAccount).Methods("GET").Name("getAccount")
+	r.HandleFunc("/players/{playerId}", router.getPlayer).Methods("GET").Name("getPlayer")
+	r.HandleFunc("/players/{playerId}", router.updatePlayer).Methods("PATCH").Name("updatePlayer")
+	r.HandleFunc("/teams/{teamId}", router.getTeam).Methods("GET").Name("getTeam")
+	r.HandleFunc("/teams/{teamId}", router.updateTeam).Methods("PATCH").Name("updateTeam")
+	r.HandleFunc("/transfers", router.newTransfer).Methods("POST").Name("newTransfer")
+	r.HandleFunc("/transfers", router.getTransfers).Methods("GET").Name("getTransfers")
 
-	r.HandleFunc("/authenticate", router.createAccount).Methods("POST")
 	r.HandleFunc("/verify-account", router.createAccount).Methods("GET")
 	r.HandleFunc("/transfers/{transferId}", router.createAccount).Methods("PATCH")
 	r.HandleFunc("/transfers/{transferId}", router.createAccount).Methods("PUT")
 
+	authenticationMiddleware :=
+		security.NewAuthenticationMiddleware(router.accountService,
+			map[string]string{
+				"getAccount":   "USER",
+				"getPlayer":    "USER",
+				"updatePlayer": "USER",
+				"getTeam":      "USER",
+				"updateTeam":   "USER",
+				"newTransfer":  "USER",
+				"getTransfers": "USER",
+			})
+
+	r.HandleFunc("/authenticate", authenticationMiddleware.Authenticate).Methods("POST")
+	r.Use(authenticationMiddleware.Middleware)
 	log.Fatal(http.ListenAndServe(":8080", r))
 }
 

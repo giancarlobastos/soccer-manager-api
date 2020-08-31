@@ -53,6 +53,16 @@ func (as *AccountService) GetAccount(accountId int) (*domain.Account, error) {
 	return &account, nil
 }
 
+func (as *AccountService) GetAccountByUsername(username string) (*domain.Account, error) {
+	account, err := as.accountRepository.GetAccountByUsername(username)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &account, nil
+}
+
 func (as *AccountService) CreateAccount(firstName, lastName, email, password string) (*domain.Account, error) {
 	encryptedPassword, err := bcrypt.GenerateFromPassword([]byte(password), 10)
 

@@ -82,7 +82,7 @@ func (ar *AccountRepository) GetAccountById(id int) (account domain.Account, err
 		"SELECT id, username, password, first_name, last_name, confirmed, locked, login_attempts, verification_token FROM account WHERE id = ?", id)
 }
 
-func (ar *AccountRepository) getAccountByUsername(username string) (account domain.Account, err error) {
+func (ar *AccountRepository) GetAccountByUsername(username string) (account domain.Account, err error) {
 	return ar.getAccount(
 		"SELECT id, username, password, first_name, last_name, confirmed, locked, login_attempts, verification_token FROM account WHERE username = ?", username)
 }
