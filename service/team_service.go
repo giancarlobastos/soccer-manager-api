@@ -2,6 +2,7 @@ package service
 
 import (
 	"encoding/json"
+	"errors"
 	jsonpatch "github.com/evanphx/json-patch/v5"
 	"github.com/giancarlobastos/soccer-manager-api/domain"
 	"github.com/giancarlobastos/soccer-manager-api/repository"
@@ -19,11 +20,15 @@ func NewTeamService(tr *repository.TeamRepository, pr *repository.PlayerReposito
 	}
 }
 
-func (ts *TeamService) GetTeam(teamId int) (*domain.Team, error) {
-	team, err := ts.teamRepository.GetTeamById(teamId)
+func (ts *TeamService) GetTeam(accountId, teamId int) (*domain.Team, error) {
+	team, err := ts.teamRepository.GetTeamByAccountId(accountId)
 
 	if err != nil {
 		return nil, err
+	}
+
+	if team.Id != teamId {
+		return nil, errors.New("team not owned by account id")
 	}
 
 	players, err := ts.playerRepository.GetPlayersByTeamId(team.Id)
@@ -37,8 +42,8 @@ func (ts *TeamService) GetTeam(teamId int) (*domain.Team, error) {
 	return team, nil
 }
 
-func (ts *TeamService) UpdateTeam(teamId int, patchJSON []byte) (*domain.Team, error) {
-	team, err := ts.GetTeam(teamId)
+func (ts *TeamService) UpdateTeam(accountId, teamId int, patchJSON []byte) (*domain.Team, error) {
+	team, err := ts.GetTeam(accountId, teamId)
 
 	if err != nil {
 		return nil, err
@@ -61,7 +66,7 @@ func (ts *TeamService) UpdateTeam(teamId int, patchJSON []byte) (*domain.Team, e
 		return nil, err
 	}
 
-	err = ts.teamRepository.UpdateTeam(team)
+	err = ts.teamRepository.UpdateTeam(accountId, team)
 
 	if err != nil {
 		return nil, err

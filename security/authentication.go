@@ -150,3 +150,7 @@ func (amw *AuthenticationMiddleware) generateToken(username, password string) (*
 
 	return &tokenString, nil
 }
+
+func (amw *AuthenticationMiddleware) GetPrincipal(r *http.Request) domain.User {
+	return r.Context().Value("user").(domain.User)
+}

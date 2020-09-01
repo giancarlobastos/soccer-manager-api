@@ -46,9 +46,9 @@ func (tr *TeamRepository) CreateTeam(team *domain.Team, tx *sql.Tx) error {
 	return nil
 }
 
-func (tr *TeamRepository) UpdateTeam(team *domain.Team) error {
+func (tr *TeamRepository) UpdateTeam(accountId int, team *domain.Team) error {
 	_, err :=
-		tr.db.Exec("UPDATE team SET name = ?, country = ? WHERE id = ?", team.Name, team.Country, team.Id)
+		tr.db.Exec("UPDATE team SET name = ?, country = ? WHERE id = ? AND account_id = ?", team.Name, team.Country, team.Id, accountId)
 
 	return err
 }

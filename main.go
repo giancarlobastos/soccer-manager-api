@@ -35,7 +35,7 @@ func init() {
 	accountService := service.NewAccountService(accountRepository, teamRepository, playerRepository)
 	playerService := service.NewPlayerService(playerRepository)
 	teamService := service.NewTeamService(teamRepository, playerRepository)
-	transferService := service.NewTransferService(transferRepository, playerRepository)
+	transferService := service.NewTransferService(transferRepository, playerRepository, teamRepository)
 
 	router = api.NewRouter(accountService, teamService, playerService, transferService)
 }
