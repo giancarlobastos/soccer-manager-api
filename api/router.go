@@ -45,6 +45,7 @@ func (router *Router) Start(addr string) {
 
 	r.HandleFunc("/accounts", router.createAccount).Methods("POST")
 	r.HandleFunc("/accounts/{accountId}", router.getAccount).Methods("GET").Name("getAccount")
+	r.HandleFunc("/verify-account", router.verifyAccount).Queries("token", "{token}").Methods("GET")
 	r.HandleFunc("/players/{playerId}", router.getPlayer).Methods("GET").Name("getPlayer")
 	r.HandleFunc("/players/{playerId}", router.updatePlayer).Methods("PATCH").Name("updatePlayer")
 	r.HandleFunc("/teams/{teamId}", router.getTeam).Methods("GET").Name("getTeam")
@@ -52,7 +53,6 @@ func (router *Router) Start(addr string) {
 	r.HandleFunc("/transfers", router.newTransfer).Methods("POST").Name("newTransfer")
 	r.HandleFunc("/transfers", router.getTransfers).Methods("GET").Name("getTransfers")
 
-	r.HandleFunc("/verify-account", router.createAccount).Methods("GET")
 	r.HandleFunc("/transfers/{transferId}", router.createAccount).Methods("PATCH")
 	r.HandleFunc("/transfers/{transferId}", router.createAccount).Methods("PUT")
 
@@ -109,6 +109,17 @@ func (router *Router) getAccount(w http.ResponseWriter, r *http.Request) {
 	}
 
 	respondWithJSON(w, http.StatusOK, account)
+}
+
+func (router *Router) verifyAccount(w http.ResponseWriter, r *http.Request) {
+	token := r.URL.Query().Get("token")
+
+	if len(token) > 0 && router.accountService.VerifyAccount(token) {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+
+	respondWithError(w, http.StatusBadRequest, "Invalid token")
 }
 
 func (router *Router) getPlayer(w http.ResponseWriter, r *http.Request) {

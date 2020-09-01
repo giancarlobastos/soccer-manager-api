@@ -100,7 +100,28 @@ func (ar *AccountRepository) getAccount(query string, args ...interface{}) (acco
 		&account.VerificationToken)
 }
 
-func (ar *AccountRepository) verifyAccount(token string) error {
-	_, err := ar.db.Exec("UPDATE account SET confirmed = ? WHERE verification_token = ?", true, token)
+func (ar *AccountRepository) VerifyAccount(token string) (bool, error) {
+	res, err := ar.db.Exec("UPDATE account SET confirmed = ? WHERE verification_token = ?", true, token)
+
+	if err != nil {
+		return false, err
+	}
+
+	rowsAffected, _ := res.RowsAffected()
+
+	if rowsAffected != 1 {
+		return false, err
+	}
+
+	return true, nil
+}
+
+func (ar *AccountRepository) RegisterFailedLoginAttempt(username string) error {
+	_, err := ar.db.Exec("UPDATE account SET login_attempts = login_attempts + 1, locked = IF(login_attempts > 2, 1, locked) WHERE username = ?", true, username)
+	return err
+}
+
+func (ar *AccountRepository) ResetLoginAttempts(username string) error {
+	_, err := ar.db.Exec("UPDATE account SET login_attempts = 0 WHERE username = ?", true, username)
 	return err
 }

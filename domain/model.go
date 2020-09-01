@@ -34,8 +34,8 @@ type Account struct {
 }
 
 type User struct {
-	Username string
-	TeamId   int
+	AccountId int
+	Username  string
 }
 
 type Transfer struct {
