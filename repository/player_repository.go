@@ -30,12 +30,13 @@ func (pr *PlayerRepository) GetPlayer(id int) (domain.Player, error) {
 	return players[0], nil
 }
 
-func (pr *PlayerRepository) GetPlayerOutOfTransferList(id int) (domain.Player, error) {
+func (pr *PlayerRepository) GetPlayerOutOfTransferList(accountId, playerId int) (domain.Player, error) {
 	players, err := pr.getPlayers(
 		"SELECT p.id, p.first_name, p.last_name, p.age, p.country, p.position, p.market_value, p.team_id "+
 			"FROM player p "+
+			"JOIN team t ON t.id = p.team_id "+
 			"LEFT JOIN transfer_list tl ON p.id = tl.player_id "+
-			"WHERE p.id = ? AND (tl.transferred = 1 OR tl.transferred IS NULL)", id)
+			"WHERE p.id = ? AND t.account_id = ? AND (tl.transferred = 1 OR tl.transferred IS NULL)", playerId, accountId)
 
 	if err != nil {
 		return domain.Player{}, err
@@ -98,10 +99,13 @@ func (pr *PlayerRepository) CreatePlayer(player *domain.Player, tx *sql.Tx) erro
 	return nil
 }
 
-func (pr *PlayerRepository) UpdatePlayer(player *domain.Player) error {
+func (pr *PlayerRepository) UpdatePlayer(accountId int, player *domain.Player) error {
 	_, err :=
-		pr.db.Exec("UPDATE player SET first_name = ?, last_name = ?, country = ? WHERE id = ?",
-			player.FirstName, player.LastName, player.Country, player.Id)
+		pr.db.Exec("UPDATE player p "+
+			"JOIN team t ON t.id = p.team_id "+
+			"SET p.first_name = ?, p.last_name = ?, p.country = ? "+
+			"WHERE p.id = ? AND t.account_id = ?",
+			player.FirstName, player.LastName, player.Country, player.Id, accountId)
 
 	return err
 }

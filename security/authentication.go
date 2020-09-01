@@ -11,6 +11,7 @@ import (
 	"github.com/gorilla/mux"
 	"golang.org/x/crypto/bcrypt"
 	"net/http"
+	"strconv"
 	"time"
 )
 
@@ -23,11 +24,6 @@ type AuthenticationRequest struct {
 
 type AuthenticationResponse struct {
 	Token string `json:"token"`
-}
-
-type Claims struct {
-	jwt.StandardClaims
-	Username string `json:"username"`
 }
 
 type AuthenticationMiddleware struct {
@@ -50,9 +46,10 @@ func (amw *AuthenticationMiddleware) Middleware(next http.Handler) http.Handler 
 				if claims, err := amw.getClaims(w, r); err != nil {
 					http.Error(w, err.Error(), http.StatusForbidden)
 				} else {
+					accountId, _ := strconv.Atoi(claims.Id)
 					user := domain.User{
-						Username: claims.Username,
-						TeamId:   3,
+						AccountId: accountId,
+						Username:  claims.Subject,
 					}
 
 					next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), "user", user)))
@@ -90,7 +87,7 @@ func (amw *AuthenticationMiddleware) Authenticate(w http.ResponseWriter, r *http
 	w.Write(response)
 }
 
-func (amw *AuthenticationMiddleware) getClaims(w http.ResponseWriter, r *http.Request) (*Claims, error) {
+func (amw *AuthenticationMiddleware) getClaims(w http.ResponseWriter, r *http.Request) (*jwt.StandardClaims, error) {
 	bearerToken := r.Header.Get("Authorization")
 
 	if len(bearerToken) < 8 {
@@ -99,7 +96,7 @@ func (amw *AuthenticationMiddleware) getClaims(w http.ResponseWriter, r *http.Re
 	}
 
 	bearerToken = bearerToken[7:]
-	claims := &Claims{}
+	claims := &jwt.StandardClaims{}
 
 	token, err := jwt.ParseWithClaims(bearerToken, claims, func(token *jwt.Token) (interface{}, error) {
 		return jwtKey, nil
@@ -132,16 +129,18 @@ func (amw *AuthenticationMiddleware) generateToken(username, password string) (*
 
 	err = bcrypt.CompareHashAndPassword([]byte(account.Password), []byte(password))
 
-	if err != nil && err == bcrypt.ErrMismatchedHashAndPassword { //Password does not match!
+	if err != nil && err == bcrypt.ErrMismatchedHashAndPassword {
+		_ = amw.accountService.RegisterFailedLoginAttempt(username)
 		return nil, errors.New("password mismatch")
 	}
 
-	token := jwt.NewWithClaims(jwt.GetSigningMethod("HS256"), &Claims{
-		Username: account.Username,
-		StandardClaims: jwt.StandardClaims{
+	_ = amw.accountService.ResetLoginAttempts(username)
+	token := jwt.NewWithClaims(jwt.GetSigningMethod("HS256"),
+		&jwt.StandardClaims{
+			Id:        strconv.Itoa(account.Id),
+			Subject:   account.Username,
 			ExpiresAt: expiresAt,
-		},
-	})
+		})
 
 	tokenString, err := token.SignedString(jwtKey)
 
@@ -150,4 +149,8 @@ func (amw *AuthenticationMiddleware) generateToken(username, password string) (*
 	}
 
 	return &tokenString, nil
+}
+
+func (amw *AuthenticationMiddleware) GetPrincipal(r *http.Request) domain.User {
+	return r.Context().Value("user").(domain.User)
 }

@@ -22,7 +22,7 @@ func (ps *PlayerService) GetPlayer(playerId int) (*domain.Player, error) {
 	return &player, err
 }
 
-func (ps *PlayerService) UpdatePlayer(playerId int, patchJSON []byte) (*domain.Player, error) {
+func (ps *PlayerService) UpdatePlayer(accountId int, playerId int, patchJSON []byte) (*domain.Player, error) {
 	player, err := ps.GetPlayer(playerId)
 
 	if err != nil {
@@ -46,7 +46,7 @@ func (ps *PlayerService) UpdatePlayer(playerId int, patchJSON []byte) (*domain.P
 		return nil, err
 	}
 
-	err = ps.playerRepository.UpdatePlayer(player)
+	err = ps.playerRepository.UpdatePlayer(accountId, player)
 
 	if err != nil {
 		return nil, err

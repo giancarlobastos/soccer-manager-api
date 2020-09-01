@@ -13,18 +13,32 @@ import (
 )
 
 type Router struct {
-	accountService  *service.AccountService
-	teamService     *service.TeamService
-	playerService   *service.PlayerService
-	transferService *service.TransferService
+	accountService           *service.AccountService
+	teamService              *service.TeamService
+	playerService            *service.PlayerService
+	transferService          *service.TransferService
+	authenticationMiddleware *security.AuthenticationMiddleware
 }
 
 func NewRouter(as *service.AccountService, ts *service.TeamService, ps *service.PlayerService, tfs *service.TransferService) *Router {
+	amw := security.NewAuthenticationMiddleware(as,
+		map[string]string{
+			"getAccount":      "USER",
+			"getPlayer":       "USER",
+			"updatePlayer":    "USER",
+			"getTeam":         "USER",
+			"updateTeam":      "USER",
+			"newTransfer":     "USER",
+			"getTransfers":    "USER",
+			"confirmTransfer": "USER",
+			"updateTransfer":  "USER",
+		})
 	return &Router{
-		accountService:  as,
-		teamService:     ts,
-		playerService:   ps,
-		transferService: tfs,
+		accountService:           as,
+		teamService:              ts,
+		playerService:            ps,
+		transferService:          tfs,
+		authenticationMiddleware: amw,
 	}
 }
 
@@ -45,31 +59,18 @@ func (router *Router) Start(addr string) {
 
 	r.HandleFunc("/accounts", router.createAccount).Methods("POST")
 	r.HandleFunc("/accounts/{accountId}", router.getAccount).Methods("GET").Name("getAccount")
+	r.HandleFunc("/verify-account", router.verifyAccount).Queries("token", "{token}").Methods("GET")
 	r.HandleFunc("/players/{playerId}", router.getPlayer).Methods("GET").Name("getPlayer")
 	r.HandleFunc("/players/{playerId}", router.updatePlayer).Methods("PATCH").Name("updatePlayer")
 	r.HandleFunc("/teams/{teamId}", router.getTeam).Methods("GET").Name("getTeam")
 	r.HandleFunc("/teams/{teamId}", router.updateTeam).Methods("PATCH").Name("updateTeam")
 	r.HandleFunc("/transfers", router.newTransfer).Methods("POST").Name("newTransfer")
 	r.HandleFunc("/transfers", router.getTransfers).Methods("GET").Name("getTransfers")
+	r.HandleFunc("/transfers/{transferId}", router.confirmTransfer).Methods("PUT").Name("confirmTransfer")
+	r.HandleFunc("/transfers/{transferId}", router.updateTransfer).Methods("PATCH").Name("updateTransfer")
 
-	r.HandleFunc("/verify-account", router.createAccount).Methods("GET")
-	r.HandleFunc("/transfers/{transferId}", router.createAccount).Methods("PATCH")
-	r.HandleFunc("/transfers/{transferId}", router.createAccount).Methods("PUT")
-
-	authenticationMiddleware :=
-		security.NewAuthenticationMiddleware(router.accountService,
-			map[string]string{
-				"getAccount":   "USER",
-				"getPlayer":    "USER",
-				"updatePlayer": "USER",
-				"getTeam":      "USER",
-				"updateTeam":   "USER",
-				"newTransfer":  "USER",
-				"getTransfers": "USER",
-			})
-
-	r.HandleFunc("/authenticate", authenticationMiddleware.Authenticate).Methods("POST")
-	r.Use(authenticationMiddleware.Middleware)
+	r.HandleFunc("/authenticate", router.authenticationMiddleware.Authenticate).Methods("POST")
+	r.Use(router.authenticationMiddleware.Middleware)
 	log.Fatal(http.ListenAndServe(":8080", r))
 }
 
@@ -101,6 +102,13 @@ func (router *Router) getAccount(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	principal := router.authenticationMiddleware.GetPrincipal(r)
+
+	if principal.AccountId != accountId {
+		respondWithError(w, http.StatusNotFound, "account id not found")
+		return
+	}
+
 	account, err := router.accountService.GetAccount(accountId)
 
 	if err != nil {
@@ -109,6 +117,17 @@ func (router *Router) getAccount(w http.ResponseWriter, r *http.Request) {
 	}
 
 	respondWithJSON(w, http.StatusOK, account)
+}
+
+func (router *Router) verifyAccount(w http.ResponseWriter, r *http.Request) {
+	token := r.URL.Query().Get("token")
+
+	if len(token) > 0 && router.accountService.VerifyAccount(token) {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+
+	respondWithError(w, http.StatusBadRequest, "Invalid token")
 }
 
 func (router *Router) getPlayer(w http.ResponseWriter, r *http.Request) {
@@ -147,7 +166,8 @@ func (router *Router) updatePlayer(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	player, err := router.playerService.UpdatePlayer(playerId, patchJSON)
+	principal := router.authenticationMiddleware.GetPrincipal(r)
+	player, err := router.playerService.UpdatePlayer(principal.AccountId, playerId, patchJSON)
 
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Error in updating player's data")
@@ -166,7 +186,8 @@ func (router *Router) getTeam(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	team, err := router.teamService.GetTeam(teamId)
+	principal := router.authenticationMiddleware.GetPrincipal(r)
+	team, err := router.teamService.GetTeam(principal.AccountId, teamId)
 
 	if err != nil {
 		respondWithError(w, http.StatusNotFound, err.Error())
@@ -193,7 +214,8 @@ func (router *Router) updateTeam(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	team, err := router.teamService.UpdateTeam(teamId, patchJSON)
+	principal := router.authenticationMiddleware.GetPrincipal(r)
+	team, err := router.teamService.UpdateTeam(principal.AccountId, teamId, patchJSON)
 
 	if err != nil {
 		respondWithError(w, http.StatusNotFound, "Error in updating team's data")
@@ -229,7 +251,8 @@ func (router *Router) newTransfer(w http.ResponseWriter, r *http.Request) {
 	}
 	defer r.Body.Close()
 
-	transferId, err := router.transferService.NewTransfer(tr.PlayerId, tr.AskedPrice)
+	principal := router.authenticationMiddleware.GetPrincipal(r)
+	transferId, err := router.transferService.NewTransfer(principal.AccountId, tr.PlayerId, tr.AskedPrice)
 
 	if err != nil {
 		respondWithError(w, http.StatusBadRequest, err.Error())
@@ -248,4 +271,52 @@ func (router *Router) getTransfers(w http.ResponseWriter, r *http.Request) {
 	}
 
 	respondWithJSON(w, http.StatusOK, transfers)
+}
+
+func (router *Router) confirmTransfer(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	transferId, err := strconv.Atoi(vars["transferId"])
+
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	principal := router.authenticationMiddleware.GetPrincipal(r)
+	err = router.transferService.ConfirmTransfer(principal.AccountId, transferId)
+
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "Unable to confirm transfer")
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
+func (router *Router) updateTransfer(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	transferId, err := strconv.Atoi(vars["transferId"])
+
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	patchJSON, err := ioutil.ReadAll(r.Body)
+	defer r.Body.Close()
+
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "Invalid request payload")
+		return
+	}
+
+	principal := router.authenticationMiddleware.GetPrincipal(r)
+	team, err := router.transferService.UpdateTransfer(principal.AccountId, transferId, patchJSON)
+
+	if err != nil {
+		respondWithError(w, http.StatusNotFound, "Error in updating team's data")
+		return
+	}
+
+	respondWithJSON(w, http.StatusOK, team)
 }

@@ -14,6 +14,7 @@ type AccountService struct {
 	accountRepository *repository.AccountRepository
 	teamRepository    *repository.TeamRepository
 	playerRepository  *repository.PlayerRepository
+	emailService      *EmailService
 }
 
 func NewAccountService(
@@ -24,6 +25,7 @@ func NewAccountService(
 		accountRepository: ar,
 		teamRepository:    tr,
 		playerRepository:  pr,
+		emailService:      NewEmailService(),
 	}
 }
 
@@ -89,6 +91,8 @@ func (as *AccountService) CreateAccount(firstName, lastName, email, password str
 		return nil, err
 	}
 
+	err = as.emailService.SendVerificationEmail(account)
+
 	return account, err
 }
 
@@ -97,7 +101,7 @@ func (as *AccountService) createTeam(name string) *domain.Team {
 		Name:          name,
 		Country:       "Brazil",
 		AvailableCash: 5000000,
-		Players:       make([]domain.Player, 20),
+		Players:       make([]domain.Player, 0, 20),
 	}
 
 	as.createPlayers(team)
@@ -123,4 +127,17 @@ func (as *AccountService) createPlayersByPosition(team *domain.Team, position do
 		}
 		team.Players = append(team.Players, player)
 	}
+}
+
+func (as *AccountService) VerifyAccount(token string) bool {
+	success, _ := as.accountRepository.VerifyAccount(token)
+	return success
+}
+
+func (as *AccountService) RegisterFailedLoginAttempt(username string) error {
+	return as.accountRepository.RegisterFailedLoginAttempt(username)
+}
+
+func (as *AccountService) ResetLoginAttempts(username string) error {
+	return as.accountRepository.ResetLoginAttempts(username)
 }
