@@ -1,6 +1,3 @@
-CREATE DATABASE soccermanager;
-USE soccermanager;
-
 CREATE TABLE account (
    id INTEGER NOT NULL AUTO_INCREMENT,
     confirmed TINYINT NOT NULL,

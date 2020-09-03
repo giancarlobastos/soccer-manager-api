@@ -1,0 +1,30 @@
+version: '3.3'
+services:
+  mysql:
+    image: mysql:latest
+    restart: always
+    environment:
+      MYSQL_DATABASE: 'soccermanager'
+      MYSQL_ROOT_PASSWORD: 'secret'
+    ports:
+      - '3306:3306'
+    expose:
+      - '3306'
+    volumes:
+      - soccermanager-mysql:/var/lib/mysql
+      - .:/docker-entrypoint-initdb.d
+    networks:
+      - soccer-manager-network
+  api:
+    image: soccer-manager-api
+    restart: always
+    ports:
+      - '8080:8080'
+    depends_on:
+      - mysql
+    networks:
+      - soccer-manager-network
+volumes:
+  soccermanager-mysql:
+networks:
+  soccer-manager-network:
