@@ -21,7 +21,7 @@ func main() {
 
 func init() {
 	var err error
-	database, err = sql.Open("mysql", "root:secret@tcp(127.0.0.1:3306)/soccermanager")
+	database, err = sql.Open("mysql", "root:secret@tcp(mysql:3306)/soccermanager")
 
 	if err != nil {
 		panic(err.Error())
